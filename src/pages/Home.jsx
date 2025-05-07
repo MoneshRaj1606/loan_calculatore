@@ -22,7 +22,9 @@ export default function Home() {
   const [interestRate, setInterestRate] = useState("");
   const [loanTerm, setLoanTerm] = useState("");
   const [emi, setEmi] = useState(null);
-  const [showTable, setShowTable] = useState(true);
+  const [showTable, setShowTable] = useState(false);
+  const [amortizationData, setAmortizationData] = useState([]);
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
 
   useEffect(() => {
     const fetchExchangeRate = async () => {
@@ -49,11 +51,31 @@ export default function Home() {
     const years = parseInt(loanTerm);
     const monthlyRate = annualRate / 12 / 100;
     const months = years * 12;
+
     const emi =
       (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) /
       (Math.pow(1 + monthlyRate, months) - 1);
+
     setEmi(emi.toFixed(2));
-    setShowTable(true); // show table when EMI is calculated
+    setShowTable(true);
+
+    let balance = principal;
+    const schedule = [];
+
+    for (let month = 1; month <= months; month++) {
+      const interestPayment = balance * monthlyRate;
+      const principalPayment = emi - interestPayment;
+      balance -= principalPayment;
+
+      schedule.push({
+        month,
+        principal: principalPayment.toFixed(2),
+        interest: interestPayment.toFixed(2),
+        balance: balance > 0 ? balance.toFixed(2) : "0.00",
+      });
+    }
+
+    setAmortizationData(schedule);
   };
 
   const handleResetTable = () => {
@@ -62,71 +84,13 @@ export default function Home() {
     setLoanAmount("");
     setInterestRate("");
     setLoanTerm("");
+    setAmortizationData([]);
   };
 
-  const columns = [
-    { id: "name", label: "Name", minWidth: 170 },
-    { id: "code", label: "ISO\u00a0Code", minWidth: 100 },
-    {
-      id: "population",
-      label: "Population",
-      minWidth: 170,
-      align: "right",
-      format: (value) => value.toLocaleString("en-US"),
-    },
-    {
-      id: "size",
-      label: "Size\u00a0(km\u00b2)",
-      minWidth: 170,
-      align: "right",
-      format: (value) => value.toLocaleString("en-US"),
-    },
-    {
-      id: "density",
-      label: "Density",
-      minWidth: 170,
-      align: "right",
-      format: (value) => value.toFixed(2),
-    },
-  ];
-
-  const rows = [
-    {
-      name: "India",
-      code: "IN",
-      population: 1393409038,
-      size: 3287263,
-      density: 424.0,
-    },
-    {
-      name: "China",
-      code: "CN",
-      population: 1444216107,
-      size: 9596961,
-      density: 150.5,
-    },
-    {
-      name: "United States",
-      code: "US",
-      population: 331893745,
-      size: 9833517,
-      density: 33.7,
-    },
-    {
-      name: "Brazil",
-      code: "BR",
-      population: 213993437,
-      size: 8515767,
-      density: 25.1,
-    },
-    {
-      name: "Russia",
-      code: "RU",
-      population: 145912025,
-      size: 17098242,
-      density: 8.5,
-    },
-  ];
+  const getConvertedEmi = () => {
+    const selectedRate = currencyData.find((c) => c.code === selectedCurrency)?.rate || 1;
+    return emi ? (emi * selectedRate).toFixed(2) : "0.00";
+  };
 
   return (
     <>
@@ -143,146 +107,132 @@ export default function Home() {
         `}
       </style>
 
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          flexWrap: "wrap",
-          padding: "10px",
-          boxSizing: "border-box",
-          justifyContent: "flex-start",
-        }}
-      >
-        <div style={{ padding: "10px" }}>
-          <p style={{ fontSize: "2rem" }}>Loan Calculator Dashboard</p>
-        </div>
-
-        {/* Input Section */}
-        <div style={{ width: "60%", padding: "10px" }}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              flexWrap: "wrap",
-              gap: "10px",
-            }}
-          >
-            <TextField
-              label="Loan Amount"
-              variant="outlined"
-              type="number"
-              value={loanAmount}
-              onChange={(e) => setLoanAmount(e.target.value)}
-            />
-            <TextField
-              label="Interest Rate (%)"
-              variant="outlined"
-              type="number"
-              value={interestRate}
-              onChange={(e) => setInterestRate(e.target.value)}
-            />
-            <TextField
-              label="Loan Term (Years)"
-              variant="outlined"
-              type="number"
-              value={loanTerm}
-              onChange={(e) => setLoanTerm(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div style={{ padding: "10px" }}>
-          <Button variant="contained" onClick={handleCalculateEMI}>
-            Calculator
-          </Button>
-        </div>
-
-        {/* EMI Output */}
-        {emi && (
-          <div style={{ padding: "10px" }}>
-            <p style={{ fontSize: "1rem", fontWeight: "800" }}>
-              Monthly EMI: <span style={{ fontWeight: "500" }}>${emi}</span>
+      <div style={{ display: "flex", justifyContent: "center", padding: "20px" }}>
+        <div style={{ maxWidth: "1000px", width: "100%" }}>
+          <div style={{ paddingBottom: "20px" }}>
+            <p style={{ fontSize: "2rem", fontWeight: "bold", color: "#1976d2" }}>
+              Loan Calculator Dashboard
             </p>
           </div>
-        )}
 
-        {/* Dropdown and Reset */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "20px",
-            padding: "10px",
-          }}
-        >
-          <FormControl sx={{ width: "200px" }}>
-            <InputLabel id="demo-simple-select-label">Currency</InputLabel>
-            <Select
-              labelId="demo-simple-select-label"
-              id="demo-simple-select"
-              label="Currency"
+          {/* Input Section */}
+          <div style={{ width: "100%", paddingBottom: "20px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "10px",
+              }}
             >
-              {currencyData.map((currency) => (
-                <MenuItem key={currency.code} value={currency.code}>
-                  {currency.code}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+              <TextField
+                label="Loan Amount"
+                variant="outlined"
+                type="number"
+                value={loanAmount}
+                onChange={(e) => setLoanAmount(e.target.value)}
+              />
+              <TextField
+                label="Interest Rate (%)"
+                variant="outlined"
+                type="number"
+                value={interestRate}
+                onChange={(e) => setInterestRate(e.target.value)}
+              />
+              <TextField
+                label="Loan Term (Years)"
+                variant="outlined"
+                type="number"
+                value={loanTerm}
+                onChange={(e) => setLoanTerm(e.target.value)}
+              />
+            </div>
+          </div>
 
-          <Button
-            variant="outlined"
-            style={{ borderColor: "purple", color: "purple" }}
-            onClick={handleResetTable}
-          >
-            Reset Table
-          </Button>
-        </div>
+          <div style={{ paddingBottom: "20px" }}>
+            <Button variant="contained" color="primary" onClick={handleCalculateEMI}>
+              Calculate
+            </Button>
+          </div>
 
-        {/* Table */}
-        {showTable && (
-          <div style={{ display: "flex", justifyContent: "center", padding: "10px" }}>
+          {/* EMI Output */}
+          {emi && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "20px",
+                flexWrap: "wrap",
+                paddingBottom: "20px",
+              }}
+            >
+              <p style={{ fontSize: "1rem", fontWeight: "800" }}>
+                Monthly EMI: <span style={{ fontWeight: "500" }}>${emi}</span>
+              </p>
+
+              <FormControl sx={{ width: "140px" }}>
+                <InputLabel>Currency</InputLabel>
+                <Select
+                  label="Currency"
+                  value={selectedCurrency}
+                  onChange={(e) => setSelectedCurrency(e.target.value)}
+                >
+                  {currencyData.map((currency) => (
+                    <MenuItem key={currency.code} value={currency.code}>
+                      {currency.code}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <p style={{ fontSize: "1rem", fontWeight: "800" }}>
+                Converted EMI:{" "}
+                <span style={{ fontWeight: "500" }}>
+                  {getConvertedEmi()} {selectedCurrency}
+                </span>
+              </p>
+
+              <Button
+                variant="outlined"
+                style={{ borderColor: "purple", color: "purple" }}
+                onClick={handleResetTable}
+              >
+                Reset Table
+              </Button>
+            </div>
+          )}
+
+          {/* Amortization Table */}
+          {showTable && (
             <Paper sx={{ width: "100%", overflow: "hidden" }}>
               <p style={{ fontSize: "1rem", padding: "10px", fontWeight: "900" }}>
                 Amortization Schedule (USD)
               </p>
               <TableContainer sx={{ maxHeight: 440 }}>
-                <Table stickyHeader aria-label="sticky table">
+                <Table stickyHeader aria-label="amortization table">
                   <TableHead>
                     <TableRow>
-                      {columns.map((column) => (
-                        <TableCell
-                          key={column.id}
-                          align={column.align}
-                          style={{ minWidth: column.minWidth }}
-                        >
-                          {column.label}
-                        </TableCell>
-                      ))}
+                      <TableCell>Month</TableCell>
+                      <TableCell>Principal</TableCell>
+                      <TableCell>Interest</TableCell>
+                      <TableCell>Remaining Balance</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {rows.map((row) => (
-                      <TableRow hover role="checkbox" tabIndex={-1} key={row.code}>
-                        {columns.map((column) => {
-                          const value = row[column.id];
-                          return (
-                            <TableCell key={column.id} align={column.align}>
-                              {column.format && typeof value === "number"
-                                ? column.format(value)
-                                : value}
-                            </TableCell>
-                          );
-                        })}
+                    {amortizationData.map((row, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{row.month}</TableCell>
+                        <TableCell>{row.principal} USD</TableCell>
+                        <TableCell>{row.interest} USD</TableCell>
+                        <TableCell>{row.balance} USD</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </TableContainer>
             </Paper>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </>
   );
